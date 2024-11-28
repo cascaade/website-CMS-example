@@ -1,0 +1,42 @@
+@keyframes characterBounce {
+    0% {
+        transform: translateY(0);
+    }
+
+    10% {
+        transform: translateY(-20%);
+    }
+
+    25% {
+        transform: translateY(15%);
+    }
+
+    45% {
+        transform: translateY(-10%);
+    }
+
+    70% {
+        transform: translateY(5%);
+    }
+
+    100% {
+        transform: translateY(0%);
+    }
+}
+
+.imported-content {
+    transition: color 0.5s ease;
+}
+
+.imports-loading-character {
+    display: inline-block;
+    transition: opacity 0.5s ease;
+    opacity: 1;
+    width: max-content;
+    white-space: pre;
+}
+
+.imported-content-segment {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
