@@ -6,26 +6,38 @@ const startRow = 3; /* this is the number corresponding to the row where the dat
 const loadingText = `We're scouting for content...`;
 const importedContentContainers = Array.from(document.querySelectorAll('.imported-content'));
 
+if (window.location.hash.match('del')) localStorage.clear();
+var cachedData = localStorage.getItem('sheet-content-cache');
+
 var loading = true;
 
 async function loadContent(fetchTable) {
     async function writeText(element, content) {
+        var textContainer = document.createElement('span');
+        element.append(textContainer);
+        
         for (var segment of content.split(' ')) {
             var segmentContainer = document.createElement('span');
             segmentContainer.innerText = segment + ' ';
             segmentContainer.classList.add('imported-content-segment');
-            element.append(segmentContainer);
+            textContainer.append(segmentContainer);
+
+            element.style.height = `${textContainer.offsetHeight + 0}px`; // you can add a number here for extra padding
 
             await new Promise(resolve => setTimeout(resolve, 20));
 
             segmentContainer.style.opacity = 1;
         }
+
+        element.style.height = `${textContainer.offsetHeight}px`; // just incase you added extra padding
     }
 
     for (var element of importedContentContainers) { // orderly "generate" the text on the page
         var content = fetchTable[element.id] || fetchTable['error'] || 'Drats! There was an error loading this content.';
         var loadingTextContainer = element.firstChild;
         var loadingCharacters = Array.from(loadingTextContainer.childNodes);
+
+        element.style.height = `${loadingTextContainer.offsetHeight}px`;
 
         for (var character of loadingCharacters) {
             character.style.opacity = 0;
@@ -43,9 +55,11 @@ async function loadContent(fetchTable) {
 
         writeText(element, content);
     }
+
+    loading = false;
 }
 
-async function fetchData() {
+async function fetchData(n) { // n is the number of times retried
     var fetchTable = {};
 
     try {
@@ -65,13 +79,16 @@ async function fetchData() {
             var [_, id, content] = data[i];
             fetchTable[id] = content;
         }
+
+        var storageCache = { data: fetchTable, expires: (Date.now() + 1000 * 60 * 30) }; // expires in 30 mins
+        localStorage.setItem('sheet-content-cache', JSON.stringify(storageCache));
+
+        await loadContent(fetchTable);
     } catch (e) {
-        console.error(e);
+        n = parseInt(n) ? n + 1 : 0;
+        console.log(`cannot load resources (${n + 1})`);
+        if (n < 3) { fetchData(n) } else { await loadContent(fetchTable) };
     }
-
-    await loadContent(fetchTable);
-
-    loading = false;
 }
 
 async function stepLoadingAnimation() { // runs loading animation
@@ -111,12 +128,22 @@ function prepareLoading() { // sets up all loading animations
     stepLoadingAnimation();
 }
 
-const params = new URLSearchParams(window.location.search);
-
-if (params.has('dev')) {
+if (window.location.hash.match('dev')) {
     importedContentContainers.forEach(container => {
         container.innerText = `[${container.id}]`;
     });
+} else if (cachedData) {
+    try {
+        cachedData = JSON.parse(cachedData);
+        console.dir(cachedData.data)
+        console.log(cachedData.expires)
+
+        if (cachedData.expires < Date.now()) throw new Error('Cache expired');
+    } catch (e) {
+        console.log(`cannot load from cache`);
+        prepareLoading();
+        window.addEventListener('load', fetchData);
+    }
 } else {
     prepareLoading();
     window.addEventListener('load', fetchData); /* i wait 'till it loads bc i want them to see how cool i am for the loading anims */
