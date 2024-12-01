@@ -4,6 +4,9 @@ const url = `https://script.google.com/macros/s/${scriptId}/exec`;
 const startRow = 3; /* this is the number corresponding to the row where the data starts */
 
 const loadingText = `We're scouting for content...`;
+const errorText = `Drats! There was an error loading this content.`;
+const errorColor = '#ff0004';
+const heightTransitionLength = 300; // in ms, the length of the transition in css
 const importedContentContainers = Array.from(document.querySelectorAll('.imported-content'));
 
 if (window.location.hash.match('del')) localStorage.clear();
@@ -30,10 +33,12 @@ async function loadContent(fetchTable) {
         }
 
         element.style.height = `${textContainer.offsetHeight}px`; // just incase you added extra padding
+        await new Promise(resolve => setTimeout(resolve, heightTransitionLength));
+        element.style.height = null;
     }
 
     for (var element of importedContentContainers) { // orderly "generate" the text on the page
-        var content = fetchTable[element.id] || fetchTable['error'] || 'Drats! There was an error loading this content.';
+        var content = fetchTable[element.id] || fetchTable['error'] || errorText;
         var loadingTextContainer = element.firstChild;
         var loadingCharacters = Array.from(loadingTextContainer.childNodes);
 
@@ -50,7 +55,7 @@ async function loadContent(fetchTable) {
         element.innerHTML = '';
 
         if (!fetchTable[element.id]) {
-            element.style.color = 'red';
+            element.style.color = errorColor;
         }
 
         writeText(element, content);
@@ -135,10 +140,18 @@ if (window.location.hash.match('dev')) {
 } else if (cachedData) {
     try {
         cachedData = JSON.parse(cachedData);
-        console.dir(cachedData.data)
-        console.log(cachedData.expires)
 
         if (cachedData.expires < Date.now()) throw new Error('Cache expired');
+
+        for (var container of importedContentContainers) {
+            var content = cachedData.data[container.id] || cachedData.data['error'] || errorText;
+
+            if (!cachedData.data[container.id]) {
+                container.style.color = errorColor;
+            }
+
+            container.innerText = content;
+        }
     } catch (e) {
         console.log(`cannot load from cache`);
         prepareLoading();
